@@ -1,0 +1,5 @@
+# Python 3.10+（ultralytics 目前不支持 3.13/3.14）
+playwright>=1.40
+opencv-python-headless>=4.9
+numpy>=1.26
+ultralytics>=8.3

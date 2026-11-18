@@ -1,0 +1,39 @@
+# 环境
+.venv*/
+.pw-browsers/
+__pycache__/
+*.pyc
+
+# 运行产物
+logs/
+runs/
+demo_webm/
+demo/frames_*.png
+
+# 大体积/第三方数据（用 tools/fetch_catalog.py 重新拉取）
+datasets/p3_raw/
+datasets/catalog/
+
+# 其他
+.DS_Store
+
+# 早期实验脚本/模型（保留在工作区，不随仓库提交）
+play_exam.py
+play_exam3.py
+play_mixed.py
+solve_now.py
+solve_screen.py
+run_white.py
+yolo11s.pt
+yolo11s-cls.pt
+screen_roi.json
+题库类别.docx
+models/cls_*/
+datasets/cls/
+datasets/piece/
+recon/
+docs/PIPELINE.md
+STATUS.md
+
+datasets/p3_dbg/
+models/*/weights/last.pt
