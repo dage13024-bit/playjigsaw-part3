@@ -52,7 +52,7 @@ SIDES = ("top", "right", "bottom", "left")
 CHAR = {1: "+", -1: "-", 0: "0", None: "?"}
 COLOR = {1: (0, 200, 0), -1: (0, 0, 255), 0: (160, 160, 160), None: (0, 165, 255)}
 
-
+# 找到最后的（最新的）canvas图片路径
 def pick_canvas() -> Path:
     files = sorted(glob.glob(str(ROOT / "logs" / "*_canvas.png")))
     if not files:
@@ -60,16 +60,17 @@ def pick_canvas() -> Path:
                          ".venv/bin/python play_p3.py --difficulty 25 --dry-run")
     return Path(files[-1])
 
-
+# 计算掩码图像中某个矩形区域内前景像素的占比，返回 0.0～1.0判断某个区域够够不够密
 def density(mask, x0, y0, x1, y1) -> float:
     h, w = mask.shape[:2]
     x0, y0 = max(0, int(round(x0))), max(0, int(round(y0)))
     x1, y1 = min(w, int(round(x1))), min(h, int(round(y1)))
+    # max,min防止越界
     if x1 <= x0 or y1 <= y0:
         return 0.0
     return float((mask[y0:y1, x0:x1] > 0).mean())
 
-
+# 返回某条边两边的两个矩形区域，后面统计像素量判断凸边凹边
 def windows(slot, pw, ph, tab, side, a=0.34, b=0.66):
     """返回 (外侧窗口, 内侧窗口)，每个窗口是 (x0,y0,x1,y1)。"""
     xL, yT = slot["x"], slot["y"]
@@ -87,7 +88,7 @@ def windows(slot, pw, ph, tab, side, a=0.34, b=0.66):
     return ((xL + a * pw, yT - d1, xL + b * pw, yT - d0),
             (xL + a * pw, yT + d0, xL + b * pw, yT + d1))
 
-
+# 通过内外框的像素密度判边
 def label_of(out_d, in_d):
     """复刻 src/slots.py:label_from_density 的三个阈值。"""
     if in_d < 0.70:
@@ -102,14 +103,20 @@ def label_of(out_d, in_d):
 def main() -> None:
     path = pick_canvas()
     img = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
+    if img is None:
+        raise SystemExit(f"无法读取图片：{path}")
     bgr = img[:, :, :3].copy()
     mask = (img[:, :, 3] >= 253).astype(np.uint8)
+    cv2.imwrite(str(OUT / "l4_mask.png"), mask * 255)
+
     ch, cw = mask.shape[:2]
 
     from pipeline import detect_board
     from slots import occupied_slots
 
     board = detect_board(img)
+    if board is None:
+        raise SystemExit(f"无法检测到棋盘：{path}")
     s = 5
     pw, ph = board["w"] / s, board["h"] / s
     tab = 0.22 * min(pw, ph)
@@ -129,7 +136,7 @@ def main() -> None:
             i = density(mask, *inner)
             labs[side] = (label_of(o, i), o, i)
         results.append(labs)
-
+# results：每个槽位一个字典 {side: (label, o, i)}
     print("\n前 8 块的判读（out=外侧密度, inn=内侧密度）：")
     print("  片   top          right        bottom       left")
     for k in range(min(8, len(results))):
@@ -140,6 +147,7 @@ def main() -> None:
         print(f"  {k:>2}   " + "  ".join(cells))
 
     from collections import Counter
+    # 用 Counter 统计所有槽位所有边上 +/-/0/? 各出现多少次，打印分布，便于发现异常（如 ? 很多说明取样有问题）。
     cnt = Counter(CHAR[r[s][0]] for r in results for s in SIDES)
     print(f"\n四边标签分布：{dict(cnt)}")
 
@@ -190,9 +198,12 @@ def main() -> None:
     for f in ("l4_windows.png", "l4_edges.png"):
         print(f"  {OUT / f}")
     print("\n练习：")
-    print("  1) 把 a/b 从 0.34/0.66 改成 0.05/0.95：为什么角上会开始误判？")
-    print("  2) 把 d1 从 1.0×tab 改成 1.5×tab：外侧窗口会伸进邻片，凸/凹会怎么错？")
-    print("  3) 找一块标成 '?' 的，解释它为什么拿不准（提示：邻片压住/阴影）")
+    print("  1) 把 a/b 从 0.34/0.66 改成 0.05/0.95：窗口覆盖整条边，")
+    print("     卡扣只占中间 1/3，密度被稀释（实测 out 0.51→0.19），大片标签变 ?")
+    print("  2) 把 d1 改成 1.5×tab：既越过卡扣尖端（稀释），又伸进邻片（污染），")
+    print("     实测 30 条边变化，既有 +→? 也有 ?→+")
+    print("  3) 找一块 '?'：先判断是'自己被压住'还是'窗口里混进了别人的卡扣'，")
+    print("     提层（点一下碎片）只对前者有效")
 
 
 if __name__ == "__main__":
