@@ -1,0 +1,19 @@
+path: /Users/meilin/Desktop/vision小游戏/datasets/p3det_obj_manual
+train: images/train
+val: images/val
+names:
+  0: airplane
+  1: backpack
+  2: bicycle
+  3: car
+  4: cat
+  5: chair
+  6: cup
+  7: desktop
+  8: dog
+  9: elephant
+  10: nailong
+  11: penguin
+  12: suitcase
+  13: tafei
+  14: umbrella

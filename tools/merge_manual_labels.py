@@ -31,6 +31,8 @@ def main() -> int:
     ap.add_argument("--src", default=str(ROOT / "datasets/p3det_obj"))
     ap.add_argument("--manual", default=str(ROOT / "datasets/p3det_obj/labels_manual/val"))
     ap.add_argument("--out", default=str(ROOT / "datasets/p3det_obj_manual"))
+    ap.add_argument("--manual-only", action="store_true",
+                    help="只用人工标注的图（80/20），不混入弱框")
     args = ap.parse_args()
 
     src, manual, out = Path(args.src), Path(args.manual), Path(args.out)
@@ -53,6 +55,24 @@ def main() -> int:
                 names.append((int(line.split(":")[0]), line.split(":", 1)[1].strip()))
 
     n = {"train": 0, "val": 0, "manual": 0}
+    if args.manual_only:
+        index = {p.stem: p for sp in ("train", "val")
+                 for p in (src / "images" / sp).glob("*.png")}
+        for stem, lab in sorted(manual_files.items()):
+            img = index.get(stem)
+            if img is None:
+                continue
+            sp = "val" if int(hashlib.md5(stem.encode()).hexdigest()[:8], 16) % 5 == 0 else "train"
+            shutil.copy2(img, out / "images" / sp / img.name)
+            shutil.copy2(lab, out / "labels" / sp / f"{stem}.txt")
+            n[sp] += 1
+            n["manual"] += 1
+        yaml = ["path: " + str(out), "train: images/train", "val: images/val", "names:"]
+        yaml += [f"  {i}: {nm}" for i, nm in names]
+        (out / "data.yaml").write_text("\n".join(yaml) + "\n")
+        print(f"[manual-only] train {n['train']} / val {n['val']}")
+        return 0
+
     for split in ("train", "val"):
         for img in sorted((src / "images" / split).glob("*.png")):
             stem = img.stem

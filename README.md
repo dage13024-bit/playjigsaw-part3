@@ -139,7 +139,7 @@ python3 -m venv .venv
 
 | 模型 | 任务 | 数据 | 权重 |
 |---|---|---|---|
-| `p3det_obj` | 输入碎片/格子，检测主体（框+15 类） | 909 / 102（弱框），mAP50 **0.880** | `models/p3det_obj/weights/best.pt` |
+| `p3det_obj` | 输入碎片/格子，检测主体（框+15 类） | 人工 80/22，mAP50 **0.995** / mAP50-95 0.978 | `models/p3det_obj/weights/best.pt` |
 | `p3det_piece` | 输入整张画布，检测 30 块碎片（1 类） | 85 / 25（槽位框+切块增强），mAP50 **0.994** | `models/p3det_piece/weights/best.pt` |
 
 - `p3det_obj` 的框是**自动弱标注**（背景分割 + 中心兜底），类别来自题库自动打标；
