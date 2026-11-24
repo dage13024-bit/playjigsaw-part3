@@ -34,6 +34,7 @@ import play_p3 as P                            # noqa: E402
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--games", type=int, default=15)
+    ap.add_argument("--start", type=int, default=1, help="起始局号（不覆盖已有 gNNN）")
     ap.add_argument("--out", default=str(ROOT / "datasets" / "p3_raw"))
     ap.add_argument("--headed", action="store_true")
     ap.add_argument("--url", default=P.OFFICIAL)
@@ -47,20 +48,21 @@ def main() -> int:
     with sync_playwright() as pw:
         browser, page, net_mode = open_page(pw, args.url, headed=args.headed)
         print(f"网络: {net_mode}")
-        for i in range(1, args.games + 1):
-            if i > 1:
+        for i in range(args.games):
+            idx = args.start + i
+            if i > 0:
                 page.reload()
             P.settle(page)
             P.start_part3(page, 5)
-            gdir = out / f"g{i:03d}"
+            gdir = out / f"g{idx:03d}"
             try:
                 rep = P.solve_once(page, 5, "g", dry=True, save_data=True, out_dir=gdir)
                 ok += 1
-                print(f"  [{i}/{args.games}] 采集 {gdir.name}："
+                print(f"  [{i + 1}/{args.games}] 采集 {gdir.name}："
                       f"白片 {rep['n_white']}，照片格 {len(rep['assign'])}，"
                       f"混淆 {rep['n_decoys']}")
             except Exception as e:                     # noqa: BLE001
-                print(f"  [{i}/{args.games}] 失败：{type(e).__name__}: {e}")
+                print(f"  [{i + 1}/{args.games}] 失败：{type(e).__name__}: {e}")
         browser.close()
 
     print(f"\n采集完成 {ok}/{args.games} 局，{time.perf_counter() - t0:.0f}s → {out}")

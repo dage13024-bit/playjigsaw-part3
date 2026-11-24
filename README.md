@@ -14,10 +14,10 @@
 
 | 项目 | 结果 |
 |---|---|
-| **Part 3 · 5×5（30 块，含 5 混淆）** | **25/25 格，连续 40 局全部通关** |
-| 每局拖拽次数 | 25–31 次（游戏给的目标线是 33 步） |
+| **Part 3 · 5×5（30 块，含 5 混淆）** | **25/25 格，累计 46 局全部通关**（旧分类模型 40 局 + 新模型 6 局） |
+| 每局拖拽次数 | 25–31 次（偶发 54 次，靠闭环恢复；目标线 33 步） |
 | 每局耗时 | 开题 10–13s（一次性下载 20 张题图）+ 识别 0.02s + YOLO/匹配 0.6–0.9s + 拖拽 2.2s |
-| YOLO 分类（验证集 76 张，按原图划分无泄漏） | top-1 **0.908**，top-5 0.987 |
+| YOLO 分类（验证集 102 张，15 类全覆盖，按原图划分无泄漏） | top-1 **0.941**，top-5 0.99 |
 | YOLO 与最终指派一致率（实局） | 19/20 |
 | Part 2 · 5×5（纯白，附带） | 25/25 通关（`play_white.py`，拖拽次数偏多） |
 
@@ -121,7 +121,7 @@ python3 -m venv .venv
 |---|---|---|
 | 采数据 | `tools/collect_p3.py` | 每局保存 25 格参考图（原生 320×240）+ 30 块碎片核心区（灰底合成） |
 | 自动标注 | `tools/label_p3.py` | 用官方题库 388 张原图逐张比对取 top-1；实测格子 20/20、碎片 20/20 |
-| 组数据集 | `tools/build_p3_dataset.py` | 552 张（476 训练 / 76 验证），**按题库原图划分**，避免同图泄漏 |
+| 组数据集 | `tools/build_p3_dataset.py` | **1011 张（909 训练 / 102 验证）**，按题库原图 + 分层划分，15 类都有验证样本 |
 | 训练 | 见下 | `yolo11s-cls.pt` 微调 16 epoch（早停），MPS |
 | 产物 | `models/p3cls_piece/weights/best.pt` | 15 类，11MB |
 
@@ -132,6 +132,19 @@ python3 -m venv .venv
 ```
 
 训练集不包含"纯白"类：纯白碎片由 OpenCV 的 alpha/亮度判据处理，不交给 YOLO。
+
+### 检测模型（交付用，和主流程分开）
+
+除了分类模型，仓库还带两套 YOLO 检测模型（详见 [`docs/DETECT.md`](docs/DETECT.md)）：
+
+| 模型 | 任务 | 数据 | 权重 |
+|---|---|---|---|
+| `p3det_obj` | 输入碎片/格子，检测主体（框+15 类） | 909 / 102（弱框），mAP50 **0.880** | `models/p3det_obj/weights/best.pt` |
+| `p3det_piece` | 输入整张画布，检测 30 块碎片（1 类） | 85 / 25（槽位框+切块增强），mAP50 **0.994** | `models/p3det_piece/weights/best.pt` |
+
+- `p3det_obj` 的框是**自动弱标注**（背景分割 + 中心兜底），类别来自题库自动打标；
+- `p3det_piece` 的框来自**槽位公式**，是精确框；
+- 两套检测模型**不参与** `play_p3.py` 主流程，用于 Part 1 风格的目标检测与画布定位演示。
 `datasets/catalog/`（388 张原图）体积较大且属于第三方素材，仓库默认不包含，
 可用 `tools/fetch_catalog.py` 重新拉取。
 
@@ -150,13 +163,22 @@ src/
 tools/
   collect_p3.py            采集真实画面
   label_p3.py              题库自动标注
-  build_p3_dataset.py      划分 train/val，生成 YOLO 分类数据集
+  build_p3_dataset.py      分层划分 train/val，生成 YOLO 分类数据集
+  build_det_dataset.py     生成两套检测数据集（主体弱框 / 画布碎片框）
+  demo_detect.py           检测模型可视化脚本
   fetch_catalog.py         下载官方题库
-models/p3cls_piece/        自训练 YOLO11-cls 权重
-datasets/p3cls/            训练/验证集（按类分目录）
-datasets/p3_labels.csv     自动标注清单
+models/
+  p3cls_piece/             自训练 YOLO11-cls 权重（主流程用）
+  p3det_obj/               主体检测模型（交付用）
+  p3det_piece/             画布碎片检测模型（交付用）
+datasets/
+  p3cls/                   分类训练/验证集（1011 张，按类分目录）
+  p3det_obj/               主体检测数据集（弱框）
+  p3det_piece/             画布碎片检测数据集（槽位框）
+  p3_labels.csv            自动标注清单
 demo/p3_5x5_demo.mp4       演示视频
 docs/ASSESSMENT.md         官方考核说明（随站抓取快照）
+docs/DETECT.md             两套检测模型的说明
 ```
 
 ---

@@ -40,3 +40,6 @@ models/*/weights/last.pt
 
 # 教学脚本生成的图片（可由脚本重新生成）
 teaching/out/
+
+# ultralytics 生成的索引缓存
+*.cache

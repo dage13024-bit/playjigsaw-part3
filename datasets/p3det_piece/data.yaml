@@ -1,0 +1,5 @@
+path: /Users/meilin/Desktop/vision小游戏/datasets/p3det_piece
+train: images/train
+val: images/val
+names:
+  0: piece
