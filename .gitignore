@@ -37,3 +37,6 @@ STATUS.md
 
 datasets/p3_dbg/
 models/*/weights/last.pt
+
+# 教学脚本生成的图片（可由脚本重新生成）
+teaching/out/

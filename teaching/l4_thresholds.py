@@ -65,11 +65,15 @@ def draw_panel(canvas, x0, title, counts, lines, color):
 def main() -> None:
     f = sorted(glob.glob(str(ROOT / "logs" / "*_canvas.png")))[-1]
     img = cv2.imread(f, cv2.IMREAD_UNCHANGED)
+    if img is None:
+        raise SystemExit(f"无法读取图片：{f}")
     mask = (img[:, :, 3] >= 253).astype(np.uint8)
     from pipeline import detect_board
     from slots import occupied_slots
     board = detect_board(img)
     s = 5
+    if board is None:
+        raise SystemExit(f"无法检测到图片中的棋盘：{f}")
     pw, ph = board["w"] / s, board["h"] / s
     tab = 0.22 * min(pw, ph)
     occ = occupied_slots(img, board, pw, ph, expect=30)
@@ -79,6 +83,7 @@ def main() -> None:
         for side in SIDES:
             o, i = windows(slot, pw, ph, tab, side)
             edges.append((density(mask, *o), density(mask, *i)))
+#到这里，edges是存了120个（out密度，in密度）的数组 
 
     out_counts = hist_rows(edges)
     out_counts_inn = np.zeros(10, int)

@@ -60,7 +60,7 @@ def build_slots(board, pw, ph, cw, ch, step=STEP):
     step_x, step_y = pw * step, ph * step
     band = max(0.0, float(board["x"]))          # 棋盘左边到画布左边的宽度
     cols_per_side = int(math.floor(band / step_x))
-    rows = int(math.floor(ch / step_y))
+    rows = int(math.floor(ch / step_y)) #向下取整
     slots = []
     for side in (0, 1):
         origin_x = 0.0 if side == 0 else board["x"] + board["w"]
@@ -78,6 +78,8 @@ def build_slots(board, pw, ph, cw, ch, step=STEP):
 def main() -> None:
     path = pick_canvas()
     img = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
+    if img is None:
+        raise SystemExit(f"无法读取图片：{path}")
     ch, cw = img.shape[:2]
     bgr = img[:, :, :3]
     alpha = img[:, :, 3]
@@ -117,11 +119,11 @@ def main() -> None:
                           if not x["occupied"]])
 
     # ---- 手算一个槽位，和公式对答案 ----
-    demo = next(x for x in slots if x["side"] == 1 and x["col"] == 0 and x["row"] == 2)
-    print(f"\n手算示例：右侧 col=0 row=2")
-    print(f"  x = {board['x'] + board['w']} + 0×{step_x:.2f} + ({step_x:.2f}-{pw:.1f})/2"
+    demo = next(x for x in slots if x["side"] == 0 and x["col"] == 1 and x["row"] == 3)
+    print(f"\n手算示例：右侧 col=1 row=3")
+    print(f"  x = 0 + 1×{step_x:.2f} + ({step_x:.2f}-{pw:.1f})/2"
           f" = {demo['x']:.1f}")
-    print(f"  y = 0 + 2×{step_y:.2f} + ({step_y:.2f}-{ph:.1f})/2 = {demo['y']:.1f}")
+    print(f"  y = 0 + 3×{step_y:.2f} + ({step_y:.2f}-{ph:.1f})/2 = {demo['y']:.1f}")
     print(f"  脚本算出来 = ({demo['x']:.1f}, {demo['y']:.1f})  "
           f"alpha 覆盖率 {demo['fill']:.2f}")
 

@@ -45,6 +45,8 @@ def main() -> None:
     path = pick_canvas()
     # IMREAD_UNCHANGED：保留第 4 个通道，否则 alpha 会被丢掉
     img = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
+    if img is None:
+        raise SystemExit(f"无法读取图片：{path}")
 
     print("=" * 60)
     print(f"文件：{path.relative_to(ROOT)}")
@@ -97,8 +99,11 @@ def main() -> None:
 
     # ---- 5. 一个具体的像素：下标是 [y, x] ----
     gray = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY)
-    bright = (a >= 250) & (gray >= 200)          # 碎片上的亮像素
-    dark = (a >= 250) & (gray <= 40)             # 棋盘/阴影这类暗像素
+    bright = (a >= 250) & (gray >= 200)          # 碎片上的亮像素，不透明，且很亮
+    dark = (a >= 250) & (gray <= 40)             # 棋盘/阴影这类暗像素，不透明且很暗
+    dark1 = dark.astype(np.uint8) * 255
+    cv2.imwrite(str(OUT / "l1_dark.png"), dark1)
+
     print(f"\n不透明像素里：亮像素(碎片) {int(bright.sum())}，"
           f"暗像素(棋盘等) {int(dark.sum())} —— alpha 只说'有没有东西'，"
           f"分不出棋盘和碎片，下一步才用亮度/颜色分")

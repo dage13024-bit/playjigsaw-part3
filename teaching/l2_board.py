@@ -37,7 +37,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "teaching" / "out"
 OUT.mkdir(parents=True, exist_ok=True)
 
-BOARD_DARK_MAX = 80      # 和 src/pipeline.py 保持一致
+BOARD_DARK_MAX = 200      # 和 src/pipeline.py 保持一致
 MIN_SIDE = 40            # 太小的暗块直接忽略（噪点、碎片上的暗花纹）
 
 
@@ -52,10 +52,15 @@ def pick_canvas() -> Path:
 def main() -> None:
     path = pick_canvas()
     img = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
+    if img is None:
+        raise SystemExit(f"无法读取图片：{path}")
     h, w = img.shape[:2]
     bgr = img[:, :, :3]
     alpha = img[:, :, 3]
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+    cv2.imwrite(str(OUT / "l2_gray.png"), gray)
+
+    
 
     print("=" * 64)
     print(f"文件：{path.relative_to(ROOT)}   {w}×{h}")
@@ -65,13 +70,16 @@ def main() -> None:
     dark = (opaque & (gray <= BOARD_DARK_MAX)).astype(np.uint8)
     print(f"不透明像素 {int(opaque.sum())}，其中暗的 {int(dark.sum())}")
     print(f"棋盘颜色的灰度实测：{int(np.median(gray[opaque & (gray <= BOARD_DARK_MAX)]))}")
+    # 通过灰色像素的中位数知道棋盘的灰度值，如果比初始的BOARD_DARK_MAX小很多，那就把它设置小
 
     cv2.imwrite(str(OUT / "l2_dark.png"), dark * 255)
+    # 把零一放大到0，255，方便人眼核实
 
     # ---- 2. 连通域：给每个连在一起的暗块编号 ----
     # connectivity=8：斜着挨着也算连在一起
     n, labels, stats, centroids = cv2.connectedComponentsWithStats(dark, connectivity=8)
     print(f"\n连通域总数（含背景）：{n}")
+    # 背景编号是0，前景编号是1~n-1
 
     rows = []
     for i in range(1, n):                     # 0 是背景，跳过
@@ -84,9 +92,10 @@ def main() -> None:
             continue
         fill = area / float(ww * hh)
         score = area * fill
+        # 既奖励"大"，也奖励"方/满"。这样大而规整的矩形得分最高。
         rows.append({"i": i, "x": x, "y": y, "w": ww, "h": hh,
                      "area": area, "fill": fill, "score": score})
-
+    print(f"\n候选暗块：",len(rows))
     rows.sort(key=lambda r: -r["score"])
     print("\n候选暗块（按 score 排序）：")
     print("  序号   位置(x,y)     尺寸(w×h)    面积     填充率   score")
@@ -98,7 +107,7 @@ def main() -> None:
     # ---- 3. 选棋盘：score 最高 且 fill 过线 ----
     best = None
     for r in rows:
-        if r["fill"] > 0.25:
+        if r["fill"] > 0.9:
             best = r
             break
     if best is None:
@@ -121,6 +130,8 @@ def main() -> None:
             y0 = best["y"] + int(r * chh) + 4
             y1 = best["y"] + int((r + 1) * chh) - 4
             sim[y0:y1, x0:x1] = 0          # 这一格被碎片盖住 → 不再是暗像素
+    cv2.imwrite(str(OUT / "l2_sim.png"), sim*255)
+
     n2, lab2, st2, _ = cv2.connectedComponentsWithStats(sim, connectivity=8)
     sim_fill = None
     for i in range(1, n2):
@@ -161,6 +172,7 @@ def main() -> None:
     # ---- 5. 和项目里的函数对一下答案 ----
     import sys
     sys.path.insert(0, str(ROOT / "src"))
+    # 把src加入到模块搜索路径前面，不然导入不了pipeline
     from pipeline import detect_board
     got = detect_board(img)
     print(f"\n项目里的 detect_board() 给出：{got}")
