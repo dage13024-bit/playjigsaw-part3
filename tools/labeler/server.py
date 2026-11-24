@@ -81,7 +81,7 @@ HTML = r"""<!doctype html>
   </div>
 </div>
 <script>
-let data=null, idx=0, img=null, scale=1, boxes=[], drag=null, dirty=false;
+let data=null, idx=0, img=null, scale=1, boxes=[], drag=null, start=null, dirty=false;
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
 const clsSel=document.getElementById('cls');
 
@@ -107,6 +107,7 @@ function draw(){
   }
 }
 function load(){
+  drag=null; start=null;
   const it=data.images[idx];
   document.getElementById('pos').textContent=(idx+1)+' / '+data.images.length;
   document.getElementById('fname').textContent=it.name+(it.done?'（已保存）':'');
@@ -129,13 +130,15 @@ function canvasXY(e){
   return [e.clientX-r.left, e.clientY-r.top];
 }
 cv.addEventListener('mousedown',e=>{
-  const [x,y]=canvasXY(e); drag=[Number(clsSel.value), x/img.width/scale, y/img.height/scale, 0, 0];
+  const [x,y]=canvasXY(e);
+  start=[x,y];                       // 起点单独存，不能被覆盖
+  drag=[Number(clsSel.value), x/img.width/scale, y/img.height/scale, 0, 0];
   dirty=true; draw();
 });
 cv.addEventListener('mousemove',e=>{
-  if(!drag) return;
+  if(!drag || !start) return;
   const [x,y]=canvasXY(e);
-  const sx=drag[1]*img.width*scale, sy=drag[2]*img.height*scale;
+  const sx=start[0], sy=start[1];
   const bx=Math.min(sx,x), by=Math.min(sy,y), bw=Math.abs(x-sx), bh=Math.abs(y-sy);
   drag=[drag[0], (bx+bw/2)/img.width/scale, (by+bh/2)/img.height/scale,
         bw/img.width/scale, bh/img.height/scale];
@@ -145,7 +148,7 @@ window.addEventListener('mouseup',e=>{
   if(drag){
     if(drag[3]*img.width<6 || drag[4]*img.height<6) drag=null;   // 误点
     else boxes=[drag];
-    drag=null; draw();
+    drag=null; start=null; draw();
   }
 });
 document.getElementById('del').onclick=()=>{boxes=[];dirty=true;draw();};
