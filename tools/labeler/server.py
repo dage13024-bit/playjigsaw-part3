@@ -116,14 +116,25 @@ function load(){
   img.onload=()=>{fit();draw();};
   img.src='/img/'+encodeURIComponent(it.name);
 }
-function save(thenNext){
+function save(thenNext, cb){
   const it=data.images[idx];
+  const snapshot=boxes.map(b=>b.slice());
   fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({name:it.name,boxes:boxes})}).then(r=>r.json()).then(j=>{
-      if(j.ok){it.done=true;document.getElementById('status').textContent='已保存 '+it.name;
-        if(thenNext){idx=(idx+1)%data.images.length; dirty=false; load();}}
+    body:JSON.stringify({name:it.name,boxes:snapshot})}).then(r=>r.json()).then(j=>{
+      if(j.ok){
+        it.done=true;
+        it.boxes=snapshot;          // 关键：同步内存，翻回来才是刚保存的框
+        dirty=false;
+        document.getElementById('status').textContent='已保存 '+it.name;
+        if(cb) cb();
+        else if(thenNext){idx=(idx+1)%data.images.length; load();}
+      }
       else document.getElementById('status').textContent='保存失败: '+j.error;
     });
+}
+function go(delta){
+  const move=()=>{idx=(idx+delta+data.images.length)%data.images.length; load();};
+  if(dirty) save(false, move); else move();   // 翻页前自动保存，避免白干
 }
 function canvasXY(e){
   const r=cv.getBoundingClientRect();
@@ -152,12 +163,12 @@ window.addEventListener('mouseup',e=>{
   }
 });
 document.getElementById('del').onclick=()=>{boxes=[];dirty=true;draw();};
-document.getElementById('prev').onclick=()=>{idx=(idx-1+data.images.length)%data.images.length;load();};
+document.getElementById('prev').onclick=()=>go(-1);
 document.getElementById('next').onclick=()=>save(true);
 document.addEventListener('keydown',e=>{
   if(e.key==='Enter'){save(true);e.preventDefault();}
-  else if(e.key==='ArrowRight'){idx=(idx+1)%data.images.length;load();}
-  else if(e.key==='ArrowLeft'){idx=(idx-1+data.images.length)%data.images.length;load();}
+  else if(e.key==='ArrowRight'){go(1);}
+  else if(e.key==='ArrowLeft'){go(-1);}
   else if(e.key==='Delete'||e.key==='Backspace'){boxes=[];dirty=true;draw();e.preventDefault();}
   else if(/^[1-9]$/.test(e.key)){const i=Number(e.key)-1;if(i<data.names.length)clsSel.value=i;draw();}
 });
@@ -180,7 +191,9 @@ def list_images(images_dir: Path, labels_dir: Path, out_dir: Path):
     items = []
     for p in sorted(images_dir.glob("*.png")):
         boxes = []
-        lp = labels_dir / (p.stem + ".txt")
+        lp = out_dir / (p.stem + ".txt")          # 人工保存的优先
+        if not lp.exists():
+            lp = labels_dir / (p.stem + ".txt")   # 没有才用预标注
         if lp.exists():
             for line in lp.read_text().splitlines():
                 parts = line.split()
