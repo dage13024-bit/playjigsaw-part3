@@ -137,7 +137,7 @@ def build_piece(args) -> None:
         occ = occupied_slots(img, board, pw, ph, expect=30)
         boxes = []
         for slot in occ:
-            # 框住整个碎片（含伸出的卡扣）
+            # 框住整个碎片（含伸出的卡扣）。展示时可用 --snap 吸附回核心框。
             x = slot["x"] - tab * 1.15
             y = slot["y"] - tab * 1.15
             boxes.append(("piece", (x, y, pw + 2 * tab * 1.15, ph + 2 * tab * 1.15)))

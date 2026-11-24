@@ -62,7 +62,37 @@
 | obj | 909 / 102 | **mAP50 = 0.880，mAP50-95 = 0.776**（102 张 val，弱框） |
 | piece | 85 / 25 | **mAP50 = 0.994，mAP50-95 = 0.803**（25 张 val，338 个框） |
 
-## 五、限制
+## 五、关于 `logs/diag_start.png`
+
+那张图的绿框**不是模型画的**，是**槽位几何**：
+`slot.x, slot.y, pw, ph` 直接画的，所以天然完美；红叉是 25 个目标格中心。
+
+碎片检测模型的标签把卡扣外扩了 1.15×tab（框更大），所以直接看预测框会比 diag 的绿框大一圈。
+标准槽位布局下，用 `--snap` 把检测结果吸附回槽位核心框，就能得到和 diag 完全一样的框：
+
+```bash
+.venv-yolo/bin/python tools/demo_detect.py \
+    --model models/p3det_piece/weights/best.pt \
+    --source logs/demo_canvas.png --snap --out logs/det_piece_snap.png
+```
+
+检测器真正的价值不在标准布局（几何已经够准），而在**初始重叠**这种槽位公式失效的场景。
+
+## 六、人工修正主体框
+
+```bash
+# 1) 启动标注工具（浏览器打开 http://127.0.0.1:8765）
+.venv/bin/python tools/labeler/server.py
+
+# 2) 标完后合并（有人工框的图 80% train / 20% val，val 只用人工框）
+.venv/bin/python tools/merge_manual_labels.py
+
+# 3) 从现有模型微调
+.venv-yolo/bin/yolo detect train data=datasets/p3det_obj_manual/data.yaml \
+    model=models/p3det_obj/weights/best.pt epochs=30 imgsz=320 batch=16 device=mps
+```
+
+## 七、限制
 
 - obj 的框是弱标注，**不要拿去和人工精标的 mAP 比**；它的价值是“类别 + 大致位置”。
 - piece 只有开局帧（碎片在托盘），没有“拼到一半”“初始重叠”的样本；

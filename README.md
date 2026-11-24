@@ -143,7 +143,9 @@ python3 -m venv .venv
 | `p3det_piece` | 输入整张画布，检测 30 块碎片（1 类） | 85 / 25（槽位框+切块增强），mAP50 **0.994** | `models/p3det_piece/weights/best.pt` |
 
 - `p3det_obj` 的框是**自动弱标注**（背景分割 + 中心兜底），类别来自题库自动打标；
-- `p3det_piece` 的框来自**槽位公式**，是精确框；
+  可用 `tools/labeler/server.py` 人工修正，再 `merge_manual_labels.py` 微调；
+- `p3det_piece` 的框来自**槽位公式**（含卡扣），是精确框；加 `--snap` 可吸附成核心框，
+  效果与 `logs/diag_start.png` 的绿框一致；
 - 两套检测模型**不参与** `play_p3.py` 主流程，用于 Part 1 风格的目标检测与画布定位演示。
 `datasets/catalog/`（388 张原图）体积较大且属于第三方素材，仓库默认不包含，
 可用 `tools/fetch_catalog.py` 重新拉取。
